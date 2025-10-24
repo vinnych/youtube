@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YouTube MP4 Downloader</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body, html {
+    height: 100%;
+    width: 100%;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #ff4d4d, #3a0ca3, #4361ee);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    overflow-y: auto;
+  }
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.4);
+  }
+  h1 { color: #fff; text-align: center; font-size: 32px; margin-bottom: 30px; }
+
+  input { width: 100%; padding: 14px; border-radius: 10px; border:none; font-size:16px; margin-bottom:20px; outline:none; text-align:center; }
+
+  .section { margin-bottom: 30px; }
+
+  #preview {
+    display: none;
+    padding: 20px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    text-align: center;
+  }
+  #thumbnail { width: 100%; max-width: 500px; border-radius: 12px; margin-bottom: 10px; }
+  
+  .quality-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
+  .quality-btn { background:#fff;color:#333;border:none;padding:10px 16px;border-radius:10px;font-weight:600;cursor:pointer; transition:0.3s; }
+  .quality-btn:hover, .quality-btn.active { background:#ffb703;color:#000; transform: scale(1.05); }
+
+  .download-btn { width:100%; background:#06d6a0; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; transition:0.3s; }
+  .download-btn:hover { background:#04b383; }
+
+  .loading { display:none; color:#fff; text-align:center; margin-top:10px; font-size:16px; }
+  .spinner { border: 4px solid rgba(255,255,255,0.3); border-top:4px solid #fff; border-radius:50%; width:30px; height:30px; animation: spin 1s linear infinite; display:inline-block; margin-top:10px; }
+  @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+
+  .ad-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    text-align:center;
+    color:#fff;
+    font-size:18px;
+    font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎬 YouTube MP4 Downloader</h1>
+
+  <!-- Input Section -->
+  <div class="section">
+    <input type="text" id="url" name="url" placeholder="Paste YouTube Link..." autocomplete="off">
+    <div id="loading" class="loading"><span class="spinner"></span> Fetching video details...</div>
+  </div>
+
+  <!-- Ad Section 1 -->
+  <div class="ad-section">Ad Space 1</div>
+
+  <!-- Video Preview -->
+  <div class="section" id="preview">
+    <img id="thumbnail" src="" alt="Thumbnail">
+    <h3 id="title"></h3>
+    <p id="uploader"></p>
+    <p id="duration"></p>
+  </div>
+
+  <!-- Ad Section 2 -->
+  <div class="ad-section">Ad Space 2</div>
+
+  <!-- Quality Buttons -->
+  <div class="section quality-buttons" id="qualityButtons">
+    <button type="button" class="quality-btn active" data-quality="360">360p</button>
+    <button type="button" class="quality-btn" data-quality="480">480p</button>
+    <button type="button" class="quality-btn" data-quality="720">720p</button>
+    <button type="button" class="quality-btn" data-quality="1080">1080p</button>
+  </div>
+
+  <!-- Ad Section 3 -->
+  <div class="ad-section">Ad Space 3</div>
+
+  <!-- Download Button -->
+  <div class="section">
+    <input type="hidden" name="quality" id="selectedQuality" value="360">
+    <button type="submit" class="download-btn" form="downloadForm">⬇️ Download MP4</button>
+  </div>
+</div>
+
+<script>
+let typingTimer;
+const doneTypingInterval = 1000;
+const urlInput = document.getElementById('url');
+const qualityButtons = document.querySelectorAll('.quality-btn');
+const selectedQuality = document.getElementById('selectedQuality');
+
+// Handle quality button selection
+qualityButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    qualityButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedQuality.value = btn.dataset.quality;
+  });
+});
+
+// Auto preview after typing/pasting
+urlInput.addEventListener('input', () => {
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(fetchPreview, doneTypingInterval);
+});
+
+async function fetchPreview() {
+  const url = urlInput.value.trim();
+  if (!url.startsWith("http")) return;
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('preview').style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('url', url);
+
+  try {
+    const res = await fetch('/preview', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('loading').style.display = 'none';
+
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('thumbnail').src = data.thumbnail;
+    document.getElementById('title').textContent = data.title;
+    document.getElementById('uploader').textContent = "Uploader: " + (data.uploader || 'Unknown');
+    document.getElementById('duration').textContent = "Duration: " + (data.duration ? data.duration + 's' : 'N/A');
+  } catch(err) {
+    document.getElementById('loading').style.display = 'none';
+    console.error(err);
+  }
+}
+</script>
+
+</body>
+</html>
